@@ -1,0 +1,50 @@
+---
+title: "Revocation"
+description: "Rotate the approved root, and stale-version proofs are rejected on-chain — no identity involved."
+---
+
+Access must be revocable. In Nullis, revocation happens by **rotating the approved root** and bumping the policy version. Stale-version proofs are then rejected on-chain — without the contract ever knowing whose access was revoked.
+
+## How it works
+
+```mermaid
+flowchart LR
+    R1["approved_root v1<br/>{Amina, Bob, Carla}"] -->|"rotate_root()"| R2["approved_root v2<br/>{Amina, Carla}"]
+    P1["Bob's proof<br/>(binds root v1)"] --> C{"root current?"}
+    R2 --> C
+    C -->|"v1 ≠ v2"| REJ["ActionRejected<br/>Receipt: REVOKED"]
+    style R1 fill:#16161a,stroke:#8A8A93,color:#fff
+    style R2 fill:#16161a,stroke:#57B87F,color:#fff
+    style P1 fill:#16161a,stroke:#8A8A93,color:#fff
+    style REJ fill:#16161a,stroke:#FF3B30,color:#fff
+```
+
+The issuer publishes a new root that omits the revoked credential and bumps the version. A proof that binds the old root no longer matches the policy's current root, so `verify_and_execute` rejects it and emits a `REVOKED` receipt.
+
+## The honest trade-off
+
+<Warning>
+  Root rotation invalidates existing Merkle witnesses. When the root rotates, **active users must refresh their membership paths** to keep proving. This is a real cost, and Nullis discloses it rather than hiding it.
+</Warning>
+
+This is the deliberate v0 choice: it is simple, on-chain-verifiable, and correct. The alternative — in-circuit non-membership — avoids the witness-refresh cost but is more complex.
+
+## The roadmap path
+
+The roadmap path is **in-circuit sparse-Merkle non-membership**: the circuit itself proves a credential is *not* in a revocation set, so revocation doesn't force honest users to refresh witnesses.
+
+<Note>
+  In-circuit non-membership is a roadmap item. Nullis does **not** claim it until it ships stably. What runs today is root rotation with versioning — and the [negative test suite](/evidence/testnet#tests) proves stale-version proofs are rejected on-chain.
+</Note>
+
+## What's tested
+
+The negative suite includes the revocation path directly:
+
+- **Stale-root (revoked) blocked** — a proof binding an old root is rejected.
+- **Disabled policy blocked** — `disable_policy` stops all execution.
+- **Expired policy blocked** — past-expiry proofs are rejected.
+
+<Card title="See it in the evidence" icon="clipboard-check" href="/evidence/testnet">
+  The full negative suite, green in CI.
+</Card>

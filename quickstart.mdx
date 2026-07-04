@@ -1,47 +1,101 @@
 ---
 title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+description: "Run the whole system — contract, circuit, SDK, and evidence — with one command."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+Nullis is a monorepo: a Soroban contract (Rust), a Noir circuit, and TypeScript packages (`@nullis/core`, `@nullis/sdk`, `@nullis/issuer`, `@nullis/cli`). You can evaluate the whole thing with one command, or reproduce a live testnet payment end to end.
 
 ## Prerequisites
 
-Before you begin, you must have:
+<AccordionGroup>
+  <Accordion title="Always required" icon="check">
+    - **Node.js 20+** and **npm**
+    - **Rust** with the `wasm32v1-none` target and the **Soroban / Stellar CLI**
+  </Accordion>
+  <Accordion title="Only for generating fresh proofs" icon="wand-magic-sparkles">
+    - **Noir** `nargo` 1.0.0-beta.9
+    - **Barretenberg** `bb` 0.87.0
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
+    The deterministic test suite runs without these — it uses a `mock-verifier` build feature for the contract-logic tests, and committed proof artifacts for the real-ZK tests.
+  </Accordion>
+</AccordionGroup>
 
-## Get started
+## One-command evaluation
+
+The fastest way to see everything is green:
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
-
+  <Step title="Clone">
     ```bash
-    npm install your-package
+    git clone https://github.com/Enoch208/nullis.git
+    cd nullis
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
-
+  <Step title="Run the full suite + print live evidence">
     ```bash
-    your-cli init
+    npm run demo:e2e
+    ```
+
+    This builds and runs the full deterministic test suite (Rust + TypeScript, including the cross-implementation hash gate) and prints the live Stellar testnet evidence — contract IDs and transaction links.
+  </Step>
+</Steps>
+
+<Check>
+  `demo:e2e` runs the real-ZK on-chain verification test, the 22-test contract-logic negative suite, and the TypeScript cross-impl hash tests. Green across all three means the ZK layer, the contract, and the SDK agree byte-for-byte.
+</Check>
+
+## Reproduce a live real-ZK payment
+
+Generate a fresh proof and submit it to the deployed contract on testnet:
+
+<Steps>
+  <Step title="Build the tree, witness, and inputs">
+    ```bash
+    node scripts/live-real-zk.mjs
+    ```
+    Produces the Merkle tree, witness, `Prover.toml`, and `public_inputs.json` / `action.json`.
+  </Step>
+  <Step title="Generate the proof (Noir + Barretenberg)">
+    ```bash
+    cd circuits/nullis && nargo execute && \
+      bb prove --scheme ultra_honk --oracle_hash keccak \
+        --bytecode_path target/nullis.json --witness_path target/nullis.gz \
+        --output_path target --output_format bytes_and_fields
     ```
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
-
+  <Step title="Verify and execute on-chain">
     ```bash
-    your-cli start
+    stellar contract invoke --id <NULLIS> --source <you> --network testnet -- \
+      verify_and_execute \
+      --policy_id 1001 --proof-file-path circuits/nullis/target/proof \
+      --public_inputs-file-path public_inputs.json --action-file-path action.json
     ```
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+The receipt returns `result: VERIFIED, executed: true` — the asset moved, gated by a real zero-knowledge proof.
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+## Or use the SDK — one line
+
+```ts
+import { Nullis } from "@nullis/sdk";
+
+const nullis = new Nullis({ contractId, secretKey });
+const receipt = await nullis.verifyAndExecute({ policyId, publicInputs, proof, action });
+// receipt.result === "VERIFIED", receipt.executed === true  → the asset moved
+```
+
+<Card title="SDK reference" icon="code" href="/build/sdk">
+  The full `@nullis/sdk` surface — read-only calls, request building, and `verifyAndExecute`.
+</Card>
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="How it works" icon="diagram-project" href="/concepts/architecture">
+    The architecture and the atomic primitive.
+  </Card>
+  <Card title="The evidence" icon="clipboard-check" href="/evidence/testnet">
+    Every claim as a real, clickable testnet transaction.
+  </Card>
+</CardGroup>

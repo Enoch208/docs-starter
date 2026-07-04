@@ -1,0 +1,57 @@
+---
+title: "CLI — @nullis/cli"
+description: "Validate policy manifests and render Privacy Receipts from the terminal."
+---
+
+`@nullis/cli` is the operator-facing tool: it validates a policy manifest before you publish it, and renders Privacy Receipts in a readable form.
+
+## The policy manifest
+
+A policy is a readable JSON manifest, hashed to `policy_hash` and registered on-chain with an active version. The CLI checks it is well-formed and canonical before you commit it to the chain.
+
+```json
+{
+  "policy_id": 1001,
+  "version": 1,
+  "action_type": "transfer",
+  "asset": "USDC",
+  "max_amount": 1000,
+  "approved_root": "0x…",
+  "app_domain": "remittance-ng-uk",
+  "expiry": 1785000000
+}
+```
+
+<Warning>
+  `policy_hash` is computed over **ordered fields**, never over raw JSON — field order and whitespace would make it non-canonical. The CLI enforces the canonical structure so what you publish is exactly what the circuit and contract expect. See [Cryptographic design](/crypto/cryptographic-design).
+</Warning>
+
+## What it does
+
+<CardGroup cols={2}>
+  <Card title="Validate a manifest" icon="circle-check">
+    Confirms the manifest has the required fields, valid types, and a canonical hash before publishing.
+  </Card>
+  <Card title="Render receipts" icon="receipt">
+    Prints a Privacy Receipt — `VERIFIED` or the rejection reason — in a human-readable form, for successes and blocks alike.
+  </Card>
+</CardGroup>
+
+## Canonical vocabulary
+
+The CLI (and everything in Nullis) uses one fixed set of terms — no synonyms:
+
+| Term | Meaning |
+| --- | --- |
+| **policy / policy manifest** | Readable JSON config, hashed to `policy_hash`, registered on-chain |
+| **approved root** | Per-policy, per-version Merkle root of approved credential commitments |
+| **commitment** | `Poseidon(credential_secret)` |
+| **nullifier** | Domain-separated, cross-app unlinkable one-time marker |
+| **context_hash** | Binds a proof to one exact action |
+| **action_id / intent_nonce** | One application-created authorization intent, consumed on-chain |
+| **app_domain / app_domain_hash** | Domain separator that makes one credential unlinkable across apps |
+| **Privacy Receipt** | The inspectable artifact emitted after every decision |
+
+<Card title="Publish flow" icon="upload" href="/concepts/architecture">
+  How policies are registered and versioned on-chain.
+</Card>

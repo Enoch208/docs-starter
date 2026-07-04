@@ -1,0 +1,66 @@
+---
+title: "What's real vs mocked"
+description: "An honest, line-by-line account of what actually runs today and what is a reference implementation or roadmap."
+---
+
+Honest scope disclosure is a scoring criterion, not a weakness. Nullis maintains a clear line between what is real and what is mocked, and never lets code, docs, or UI claim something that isn't built.
+
+## Real — running today
+
+<CardGroup cols={2}>
+  <Card title="Real on-chain ZK" icon="lock">
+    A Noir/UltraHonk proof of the Nullis circuit is verified **on Stellar testnet** inside `verify_and_execute`, gating an actual USDC payment. The credential secret is never revealed.
+  </Card>
+  <Card title="The circuit" icon="microchip">
+    Proves possession of `credential_secret`, Poseidon2 commitment membership in `approved_root` (depth-8 Merkle), and correct nullifier derivation.
+  </Card>
+  <Card title="Cross-impl hashing" icon="equals">
+    Canonical Poseidon2-BN254 computed **byte-identical** across the contract, the TypeScript SDK, and the Noir circuit — cross-validated by golden vectors and `nargo execute`.
+  </Card>
+  <Card title="Atomic verify_and_execute" icon="bolt">
+    On-chain Soroban (Protocol 27) — atomic proof-to-action.
+  </Card>
+  <Card title="Real asset movement" icon="money-bill-transfer">
+    Actual testnet asset movement via the escrow reference adapter (contract → recipient).
+  </Card>
+  <Card title="Replay prevention" icon="ban">
+    Nullifier + `action_id` replay prevention, proven on-chain.
+  </Card>
+  <Card title="Action binding" icon="link">
+    Recipient / amount / asset / consuming-contract / network — bound and checked on-chain and in tests.
+  </Card>
+  <Card title="Policy lifecycle" icon="file-contract">
+    Policy registry + versioning + root-rotation revocation + expiry.
+  </Card>
+  <Card title="Two apps, unlinkable" icon="user-secret">
+    One engine, two apps, with unlinkable nullifiers — reproducible.
+  </Card>
+  <Card title="Privacy Receipt" icon="receipt">
+    Emitted on success **and** rejection.
+  </Card>
+</CardGroup>
+
+## Mocked / roadmap — honestly disclosed
+
+<Warning>
+  These are **not** claimed as production-ready. They are reference implementations or roadmap items, disclosed plainly.
+</Warning>
+
+| Item | Status |
+| --- | --- |
+| The **reference issuer** | Performs no real KYC — admitting a user *is* adding to the root. |
+| In-circuit sparse-Merkle **non-membership** revocation | Roadmap. v0 uses root rotation. |
+| **Multi-issuer governance** | Roadmap. |
+| **Mainnet** + a **security audit** | Roadmap. |
+| The **escrow executor** | A reference execution adapter. Authorized-transfer is the production path. |
+| The `mock-verifier` build feature | Exists only for the fast deterministic contract-logic test suite. The **deployed wasm always uses the real verifier**. |
+
+## The one line that matters
+
+<Info>
+  Move items from "mocked" to "real" only when they **truly are**. A reviewer can check every "real" claim above against a live transaction or a one-command test — and every "roadmap" item is labeled as such wherever it appears.
+</Info>
+
+<Card title="Verify the real claims" icon="clipboard-check" href="/evidence/testnet">
+  Every "real" item maps to a testnet transaction or a deterministic test.
+</Card>

@@ -1,0 +1,79 @@
+---
+title: "Live on Stellar testnet"
+description: "Every claim is a real, clickable testnet transaction — or a one-command test run."
+---
+
+Nullis ships **reproducible evidence, not claims**. Everything below is either a live Stellar testnet transaction or a one-command test run. The load-bearing fact: a real Noir/UltraHonk proof is verified **on-chain** inside `verify_and_execute`, gating an actual USDC payment.
+
+## The deployment
+
+| What | Value |
+| --- | --- |
+| Nullis contract (real verifier) | [`CBVZ3XJQ…F5Y7`](https://stellar.expert/explorer/testnet/contract/CBVZ3XJQLDFFOOVW3445TFT3UJYFLMAXZTX3IP5PEFAKHXUMCIG7F5Y7) |
+| Test-USDC asset (SAC) | `CDRR42LT…P4RV` |
+| Network | Stellar testnet · Protocol 27 |
+
+The verification key is set at deploy time; `verify_and_execute` runs the real UltraHonk verifier.
+
+## The transactions
+
+<CardGroup cols={2}>
+  <Card title="A real ZK proof gates a payment" icon="cube" href="https://stellar.expert/explorer/testnet/tx/214d788bf9e842332d43fbd88fba2e190a6f388dd0f1a098ca76a6e4427e6703">
+    **100 USDC moved** — `ProofVerified → transfer → ActionExecuted → ReceiptEmitted (VERIFIED)`. `214d788b…`
+  </Card>
+  <Card title="Contract deployed with a validated VK" icon="rocket" href="https://stellar.expert/explorer/testnet/tx/e16278f02ff2d333599f548edc7f978ac08726fa1e290c520ced44e3d266007e">
+    `e16278f0…`
+  </Card>
+  <Card title="Policy published on-chain" icon="file-contract" href="https://stellar.expert/explorer/testnet/tx/2a3ba6e603a186b95168657e35fabd32d1ec55d9a6e43068008ec313d2428fe6">
+    Emits `PolicyPublished`. `2a3ba6e6…`
+  </Card>
+  <Card title="Replay blocked" icon="ban">
+    `ActionRejected(REPLAY)`, `executed: false` — recipient balance unchanged. No double-spend.
+  </Card>
+</CardGroup>
+
+<Tip>
+  The first link is the one to click. It's a real testnet transaction where a zero-knowledge proof was verified on-chain and 100 USDC actually moved — with no identity revealed.
+</Tip>
+
+## Tests
+
+The whole system is covered by deterministic tests that run without a network.
+
+<AccordionGroup>
+  <Accordion title="Real ZK — cargo test -p nullis-contract" icon="lock">
+    A real UltraHonk proof of the full Nullis circuit verifies **on-chain**; a tampered proof and a tampered public input are both **rejected** (soundness). Plus the canonical-hash unit tests.
+  </Accordion>
+  <Accordion title="Contract logic — 22 tests (mock-verifier)" icon="list-check">
+    The full negative suite: valid succeeds · invalid proof blocked · replay blocked · changed recipient / amount / asset blocked · amount-over-max blocked · stale-root (revoked) blocked · expired blocked · disabled blocked · cross-network/contract blocked · two apps → different nullifiers.
+  </Accordion>
+  <Accordion title="TypeScript — 18 tests" icon="js">
+    The cross-impl hash gate (`test-vectors.json` asserted by both Rust and TS), issuer Merkle build/witness/revocation, and SDK request building.
+  </Accordion>
+  <Accordion title="Circuit — nargo test / execute" icon="microchip">
+    Soundness: a valid member is accepted; a non-member secret, a tampered path, and a wrong nullifier are each rejected. Plus `nargo execute` cross-validates Noir's Poseidon2 against Rust and TS.
+  </Accordion>
+</AccordionGroup>
+
+## The negative suite is the point
+
+A privacy system is only trustworthy if its **rejections** are provable. Nullis's mandatory negative-test suite proves every failure path on-chain:
+
+<CardGroup cols={2}>
+  <Card title="Invalid proof → blocked" icon="xmark" />
+  <Card title="Replayed nullifier → blocked" icon="xmark" />
+  <Card title="Revoked / stale root → blocked" icon="xmark" />
+  <Card title="Expired policy → blocked" icon="xmark" />
+  <Card title="Changed recipient / amount / asset → blocked" icon="xmark" />
+  <Card title="Cross-network context → blocked" icon="xmark" />
+</CardGroup>
+
+## Reproduce it
+
+```bash
+npm run demo:e2e     # full suite (Rust + TS) + prints the live evidence
+```
+
+<Card title="Run it yourself" icon="terminal" href="/quickstart">
+  The Quickstart walks through one-command evaluation and reproducing a live payment.
+</Card>

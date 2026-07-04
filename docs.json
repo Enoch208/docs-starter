@@ -1,34 +1,75 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Nullis",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#57B87F",
+    "light": "#86EBA9",
+    "dark": "#3AA06A"
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "pages": [
       {
-        "group": "Getting Started",
+        "group": "Getting started",
         "pages": [
           "index",
           "quickstart"
+        ]
+      },
+      {
+        "group": "How Nullis works",
+        "pages": [
+          "concepts/problem",
+          "concepts/architecture",
+          "concepts/verify-and-execute",
+          "concepts/claim-safety",
+          "concepts/privacy-receipt"
+        ]
+      },
+      {
+        "group": "Cryptography",
+        "pages": [
+          "crypto/cryptographic-design",
+          "crypto/circuit",
+          "crypto/unlinkability",
+          "crypto/revocation"
+        ]
+      },
+      {
+        "group": "Evidence & trust",
+        "pages": [
+          "evidence/testnet",
+          "evidence/benchmarks",
+          "evidence/security",
+          "evidence/honesty"
+        ]
+      },
+      {
+        "group": "Build on Nullis",
+        "pages": [
+          "build/sdk",
+          "build/cli",
+          "build/examples"
         ]
       }
     ],
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "GitHub",
+          "href": "https://github.com/Enoch208/nullis",
+          "icon": "github"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "Live app",
+          "href": "https://www.usenullis.xyz/",
+          "icon": "globe"
+        },
+        {
+          "anchor": "Live contract",
+          "href": "https://stellar.expert/explorer/testnet/contract/CBVZ3XJQLDFFOOVW3445TFT3UJYFLMAXZTX3IP5PEFAKHXUMCIG7F5Y7",
+          "icon": "cube"
         }
       ]
     }
@@ -40,14 +81,14 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "GitHub",
+        "href": "https://github.com/Enoch208/nullis"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "label": "Watch the demo",
+      "href": "https://youtu.be/__jVDiYdoAA"
     }
   },
   "contextual": {
@@ -55,18 +96,13 @@
       "copy",
       "view",
       "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
+      "claude"
     ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://x.com/dreyethh",
+      "github": "https://github.com/Enoch208/nullis"
     }
   }
 }

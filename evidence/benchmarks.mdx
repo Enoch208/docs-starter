@@ -1,0 +1,57 @@
+---
+title: "Benchmarks"
+description: "Measured, not estimated. Circuit size, proving time, and the real cost of on-chain ZK verification."
+---
+
+Every number here is measured. Circuit size comes from `bb gates`; timings are on Apple Silicon (arm64); on-chain costs are the **actual fees charged** for real testnet transactions.
+
+## Circuit
+
+| Metric | Value |
+| --- | --- |
+| Proves | Poseidon2 commitment · depth-8 Merkle membership · nullifier derivation |
+| ACIR opcodes | 73 |
+| Circuit size (gates) | 1,540 |
+| Stack | Noir 1.0.0-beta.9 · Barretenberg (UltraHonk) 0.87.0 · BN254 |
+
+## Proving (client-side, off-chain)
+
+| Step | Time |
+| --- | --- |
+| `nargo execute` (witness) | ~0.6 s |
+| `bb prove` (UltraHonk) | ~0.27 s |
+
+## Artifacts
+
+| Artifact | Size |
+| --- | --- |
+| Proof | 14,592 bytes (456 field elements) |
+| Public inputs | 160 bytes (5 field elements) |
+| Verification key | 1,760 bytes |
+| Contract wasm (real verifier) | 44,957 bytes |
+
+## On-chain verification cost
+
+The load-bearing number: a real UltraHonk proof is verified **on-chain** inside `verify_and_execute`, within Soroban's standard per-transaction resource limits.
+
+| Transaction | Fee charged | Notes |
+| --- | --- | --- |
+| `verify_and_execute` — **real UltraHonk** ([`214d788b…`](https://stellar.expert/explorer/testnet/tx/214d788bf9e842332d43fbd88fba2e190a6f388dd0f1a098ca76a6e4427e6703)) | 364,475 stroops (~0.0364 XLM) | proof verify + escrow transfer + receipt |
+| `verify_and_execute` — placeholder verifier | 244,159 stroops (~0.0244 XLM) | same flow, no ZK verification |
+| **Incremental cost of on-chain ZK verification** | **~120,316 stroops (~0.012 XLM)** | the UltraHonk verification itself |
+
+<Check>
+  On-chain UltraHonk verification is cheap enough to run inside a **normal payment transaction** on testnet — no elevated limits required.
+</Check>
+
+## Reproduce
+
+```bash
+cd circuits/nullis
+nargo test                       # circuit soundness
+bb gates --scheme ultra_honk --bytecode_path target/nullis.json
+node ../../scripts/live-real-zk.mjs && nargo execute && \
+  bb prove --scheme ultra_honk --oracle_hash keccak \
+    --bytecode_path target/nullis.json --witness_path target/nullis.gz \
+    --output_path target --output_format bytes_and_fields
+```

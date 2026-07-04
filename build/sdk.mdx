@@ -1,0 +1,89 @@
+---
+title: "SDK — @nullis/sdk"
+description: "Submit verify_and_execute to the on-chain contract in one call."
+---
+
+`@nullis/sdk` wraps the Soroban contract so you can verify a proof and execute the bound action in a single call. It handles the `U256` / struct / `Bytes` encoding by fetching the contract spec automatically.
+
+## Install
+
+```bash
+npm install @nullis/sdk @nullis/core
+```
+
+## One-line integration
+
+```ts
+import { Nullis } from "@nullis/sdk";
+
+const nullis = new Nullis({ contractId, secretKey });
+const receipt = await nullis.verifyAndExecute({ policyId, publicInputs, proof, action });
+// receipt.result === "VERIFIED", receipt.executed === true  → the asset moved
+```
+
+## The `Nullis` client
+
+```ts
+new Nullis({
+  contractId: string,          // deployed Nullis contract id
+  rpcUrl?: string,             // defaults to Soroban testnet
+  networkPassphrase?: string,  // defaults to Testnet
+  secretKey?: string,          // S… — required only for verifyAndExecute
+});
+```
+
+<ResponseField name="getPolicy(policyId: bigint)" type="Promise<Policy>">
+  Read the on-chain policy (simulation, no signing).
+</ResponseField>
+
+<ResponseField name="isSpent(nullifier: bigint)" type="Promise<boolean>">
+  Read whether a nullifier is already spent (simulation, no signing).
+</ResponseField>
+
+<ResponseField name="verifyAndExecute(req: ProofRequest)" type="Promise<OnChainReceipt>">
+  Verify a proof and execute the bound action atomically, on-chain. Requires a `secretKey`. Returns the Privacy Receipt (`result: VERIFIED` on success, else the reason) — including the submitted transaction hash.
+</ResponseField>
+
+## Building a request
+
+`@nullis/core` and the SDK's `buildRequest` compute the canonical public inputs (`context_hash`, `action_id`, `nullifier`) from your policy and action, so you never assemble them by hand:
+
+```ts
+import { policyHash } from "@nullis/core";
+import { buildRequest, addrToField } from "@nullis/sdk";
+
+const req = buildRequest({
+  policyId, policyHash: pHash, policyVersion: 1, approvedRoot,
+  appDomainHash, policyExpiry, networkId, nullisContract,
+  credentialSecret,
+  action: { actionType, recipient, amount, asset, consumingContract, intentNonce },
+});
+// req.publicInputs.{contextHash, actionId, nullifier} are derived for you
+```
+
+## The receipt
+
+```ts
+interface OnChainReceipt {
+  result: string;          // "VERIFIED" | "REPLAY" | reason
+  executed: boolean;       // did the asset move?
+  policyId: bigint;
+  version: number;
+  actionType: number;
+  amount: bigint;
+  asset: string;
+  nullifier: bigint;
+  identityDisclosed: boolean;   // always false
+  crossAppIdentifier: boolean;  // always false
+  ledger: number;
+  txHash?: string;              // for explorer linking
+}
+```
+
+<Tip>
+  Proven live: `NULLIS_SECRET=$(stellar keys show nullis-deployer) node scripts/live-sdk-demo.mjs` generates a fresh real proof and submits it in one call — `result: VERIFIED, executed: true` on testnet.
+</Tip>
+
+<Card title="Core hashing — @nullis/core" icon="hashtag" href="/crypto/cryptographic-design">
+  `poseidon2`, `commitment`, `policyHash`, `contextHash`, `actionId`, `nullifier` — the canonical structures.
+</Card>
