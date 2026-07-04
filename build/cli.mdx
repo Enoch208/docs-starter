@@ -3,11 +3,11 @@ title: "CLI — @nullis/cli"
 description: "Validate policy manifests and render Privacy Receipts from the terminal."
 ---
 
-`@nullis/cli` is the operator-facing tool: it validates a policy manifest before you publish it, and renders Privacy Receipts in a readable form.
+`@nullis/cli` is the operator-facing tool. Before a policy touches the chain, the CLI checks it is well-formed and canonical; after a decision, it renders the Privacy Receipt in a readable form — for successes and blocks alike.
 
 ## The policy manifest
 
-A policy is a readable JSON manifest, hashed to `policy_hash` and registered on-chain with an active version. The CLI checks it is well-formed and canonical before you commit it to the chain.
+A policy is a readable JSON manifest, hashed to `policy_hash` and registered on-chain with an active version.
 
 ```json
 {
@@ -22,24 +22,69 @@ A policy is a readable JSON manifest, hashed to `policy_hash` and registered on-
 }
 ```
 
+### Field reference
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `policy_id` | integer | Unique id, referenced by `verify_and_execute` |
+| `version` | integer | Bumped on every root rotation; stale versions are rejected |
+| `action_type` | `transfer` \| `access_grant` | What the contract executes on success |
+| `asset` | string | The asset the policy authorizes |
+| `max_amount` | integer | Upper bound the contract enforces (`amount ≤ max_amount`) |
+| `approved_root` | field | Merkle root of approved credential commitments |
+| `app_domain` | string | Domain separator for cross-app unlinkable nullifiers |
+| `expiry` | unix ts | After this, all proofs are rejected |
+
 <Warning>
   `policy_hash` is computed over **ordered fields**, never over raw JSON — field order and whitespace would make it non-canonical. The CLI enforces the canonical structure so what you publish is exactly what the circuit and contract expect. See [Cryptographic design](/crypto/cryptographic-design).
 </Warning>
 
-## What it does
+## Validate a manifest
 
-<CardGroup cols={2}>
-  <Card title="Validate a manifest" icon="circle-check">
-    Confirms the manifest has the required fields, valid types, and a canonical hash before publishing.
-  </Card>
-  <Card title="Render receipts" icon="receipt">
-    Prints a Privacy Receipt — `VERIFIED` or the rejection reason — in a human-readable form, for successes and blocks alike.
-  </Card>
-</CardGroup>
+```bash
+nullis policy validate policy.json
+```
+
+```text
+✓ schema — all required fields present, types valid
+✓ canonical — fields ordered; no extra keys
+✓ policy_hash = Poseidon(policy_id, version, action_type, asset,
+                         max_amount, approved_root, app_domain_hash, expiry)
+  → 0x1f6b…c04a
+Policy is publishable.
+```
+
+If a field is missing, mistyped, or the manifest has extra keys, validation fails **before** anything is committed on-chain — you never publish a policy the circuit and contract would disagree with.
+
+## Render a Privacy Receipt
+
+The receipt renders the same way whether the decision was a success or a block — that duality is the point.
+
+<CodeGroup>
+```text VERIFIED
+Privacy Receipt ──────────────────────────
+  result     VERIFIED
+  executed   true
+  policy     1001 · v1
+  action     transfer 100 USDC → recipient
+  nullifier  0x1f6485…9dfb
+  identity disclosed   false
+  cross-app identifier false
+```
+
+```text REPLAY
+Privacy Receipt ──────────────────────────
+  result     REPLAY
+  executed   false
+  policy     1001 · v1
+  nullifier  0x1f6485…9dfb  (already spent)
+  note       ActionRejected(REPLAY) · balance unchanged
+```
+</CodeGroup>
 
 ## Canonical vocabulary
 
-The CLI (and everything in Nullis) uses one fixed set of terms — no synonyms:
+The CLI — and everything in Nullis — uses one fixed set of terms, no synonyms:
 
 | Term | Meaning |
 | --- | --- |

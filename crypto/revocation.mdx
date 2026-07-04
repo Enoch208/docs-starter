@@ -3,7 +3,7 @@ title: "Revocation"
 description: "Rotate the approved root, and stale-version proofs are rejected on-chain — no identity involved."
 ---
 
-Access must be revocable. In Nullis, revocation happens by **rotating the approved root** and bumping the policy version. Stale-version proofs are then rejected on-chain — without the contract ever knowing whose access was revoked.
+Access must be revocable. In Nullis, revocation happens by **rotating the approved root** and bumping the policy version. Stale-version proofs are then rejected on-chain — without the contract ever learning *whose* access was revoked.
 
 ## How it works
 
@@ -21,29 +21,92 @@ flowchart LR
 
 The issuer publishes a new root that omits the revoked credential and bumps the version. A proof that binds the old root no longer matches the policy's current root, so `verify_and_execute` rejects it and emits a `REVOKED` receipt.
 
+## The policy lifecycle
+
+Revocation is one move in a small, explicit lifecycle — all handled by the Policy module of the contract:
+
+```mermaid
+flowchart LR
+    A["create_policy"] --> B["publish_root<br/>(v1, root₁)"]
+    B --> C["rotate_root<br/>(v2, root₂)"]
+    C --> D["rotate_root<br/>(v3, root₃)"]
+    B -.-> E["disable_policy"]
+    C -.-> E
+    style A fill:#16161a,stroke:#57B87F,color:#fff
+    style B fill:#16161a,stroke:#57B87F,color:#fff
+    style C fill:#16161a,stroke:#57B87F,color:#fff
+    style D fill:#16161a,stroke:#57B87F,color:#fff
+    style E fill:#16161a,stroke:#FF3B30,color:#fff
+```
+
+| Function | Effect | Event |
+| --- | --- | --- |
+| `create_policy` | Register a policy + its first root and version | `PolicyPublished` |
+| `publish_root` | Set the approved root for a version | `PolicyPublished` |
+| `rotate_root` | Publish a new root, bump the version — **this is revocation** | `RootRotated` |
+| `disable_policy` | Stop all execution under a policy | — |
+
+## A worked example
+
+<Steps>
+  <Step title="Before — v1">
+    Policy 1001 is active at version 1 with `approved_root = root₁`, which includes Bob's commitment. Bob can prove membership and transact.
+  </Step>
+  <Step title="Revoke — rotate to v2">
+    The issuer rebuilds the tree **without** Bob, computes `root₂`, and calls `rotate_root(1001, root₂)`. The policy is now at version 2. `RootRotated` is emitted.
+  </Step>
+  <Step title="After — Bob is blocked">
+    Bob's existing proof binds `root₁` and `policy_version: 1`. The contract checks the proof's root against the policy's current root (`root₂`, v2) — they don't match. Result: `ActionRejected`, receipt `REVOKED`, nothing executes. Amina and Carla, still in `root₂`, are unaffected.
+  </Step>
+</Steps>
+
 ## The honest trade-off
 
 <Warning>
-  Root rotation invalidates existing Merkle witnesses. When the root rotates, **active users must refresh their membership paths** to keep proving. This is a real cost, and Nullis discloses it rather than hiding it.
+  Root rotation invalidates existing Merkle witnesses. When the root rotates, **every still-approved user must refresh their membership path** to keep proving — because the tree changed shape. This is a real operational cost, and Nullis discloses it rather than hiding it.
 </Warning>
 
-This is the deliberate v0 choice: it is simple, on-chain-verifiable, and correct. The alternative — in-circuit non-membership — avoids the witness-refresh cost but is more complex.
+This is the deliberate v0 choice: it is simple, on-chain-verifiable, and correct. It trades a witness-refresh cost for a design a reviewer can fully audit today.
 
-## The roadmap path
+## The roadmap path — in-circuit non-membership
 
-The roadmap path is **in-circuit sparse-Merkle non-membership**: the circuit itself proves a credential is *not* in a revocation set, so revocation doesn't force honest users to refresh witnesses.
+The roadmap replaces "prove membership in an approved set" with "prove **non-membership** in a revocation set", using a sparse Merkle tree. The circuit itself proves a credential is *not* revoked, so honest users never have to refresh witnesses when someone else is removed.
+
+```mermaid
+flowchart LR
+    subgraph NOW["v0 — today"]
+        M["Prove membership<br/>in approved_root"] --> RM["Rotate root to revoke<br/>(others refresh witness)"]
+    end
+    subgraph NEXT["Roadmap"]
+        NM["Prove non-membership<br/>in revocation set (sparse Merkle)"] --> NR["Add to revocation set<br/>(no witness refresh)"]
+    end
+    style NOW fill:#0a0a0c,stroke:#57B87F,color:#fff
+    style NEXT fill:#0a0a0c,stroke:#8A8A93,color:#fff
+    style M fill:#16161a,stroke:#57B87F,color:#fff
+    style RM fill:#16161a,stroke:#57B87F,color:#fff
+    style NM fill:#16161a,stroke:#8A8A93,color:#fff
+    style NR fill:#16161a,stroke:#8A8A93,color:#fff
+```
 
 <Note>
-  In-circuit non-membership is a roadmap item. Nullis does **not** claim it until it ships stably. What runs today is root rotation with versioning — and the [negative test suite](/evidence/testnet#tests) proves stale-version proofs are rejected on-chain.
+  In-circuit non-membership is a **roadmap item**. Nullis does not claim it until it ships stably. What runs today is root rotation with versioning — and the negative suite proves stale-version proofs are rejected on-chain.
 </Note>
 
 ## What's tested
 
-The negative suite includes the revocation path directly:
+The negative suite exercises the whole revocation surface directly:
 
-- **Stale-root (revoked) blocked** — a proof binding an old root is rejected.
-- **Disabled policy blocked** — `disable_policy` stops all execution.
-- **Expired policy blocked** — past-expiry proofs are rejected.
+<CardGroup cols={3}>
+  <Card title="Stale-root blocked" icon="ban">
+    A proof binding an old root is rejected → `REVOKED`.
+  </Card>
+  <Card title="Disabled policy blocked" icon="ban">
+    `disable_policy` stops all execution.
+  </Card>
+  <Card title="Expired policy blocked" icon="ban">
+    Past-expiry proofs are rejected.
+  </Card>
+</CardGroup>
 
 <Card title="See it in the evidence" icon="clipboard-check" href="/evidence/testnet">
   The full negative suite, green in CI.

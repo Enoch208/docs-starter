@@ -3,9 +3,28 @@ title: "Unlinkability — two apps, one engine"
 description: "The same credential produces a different nullifier in every app. Reusable credentials, without a reusable tracking identifier."
 ---
 
-A reusable credential is convenient — and dangerous. If the same credential produced the same on-chain marker everywhere, it would become a tracking beacon: link a user's activity across every app that uses it.
+A reusable credential is convenient — and dangerous. If the same credential produced the same on-chain marker everywhere, it would become a tracking beacon: anyone watching the chain could link a user's activity across every app that accepts it.
 
-Nullis prevents this by **domain-separating** the nullifier.
+Nullis keeps credentials reusable **without** making them trackable, by **domain-separating** the nullifier.
+
+## The threat, concretely
+
+```mermaid
+flowchart TB
+    subgraph BAD["❌ Without domain separation"]
+        S1["credential_secret"] --> X["nullifier = f(secret)"]
+        X --> XA["seen in App A"]
+        X --> XB["seen in App B"]
+        XA -.->|"same value → LINKED"| XB
+    end
+    style BAD fill:#0a0a0c,stroke:#FF3B30,color:#fff
+    style S1 fill:#16161a,stroke:#FF3B30,color:#fff
+    style X fill:#16161a,stroke:#FF3B30,color:#fff
+    style XA fill:#16161a,stroke:#FF3B30,color:#fff
+    style XB fill:#16161a,stroke:#FF3B30,color:#fff
+```
+
+If the nullifier were just a function of the secret, the *same* value would surface in every app — a permanent, cross-app identifier. That's the exact tracking harm private credentials are supposed to avoid.
 
 ## The mechanism
 
@@ -15,7 +34,7 @@ The nullifier folds in an `app_domain` term:
 nullifier = Poseidon(credential_secret, policy_id, app_domain, action_id)
 ```
 
-Change the app, change the `app_domain`, change the nullifier — even for the identical credential. The `app_domain_hash` is a domain separator that makes one credential unlinkable across apps.
+Because Poseidon is a cryptographic hash, changing any input scrambles the output unpredictably. Change the app, change the `app_domain`, and the nullifier is a completely different, uncorrelatable field element — even for the identical credential. Given only two nullifiers, an observer cannot tell whether they came from one credential or two.
 
 ```mermaid
 flowchart TB
@@ -32,6 +51,10 @@ flowchart TB
     style NB fill:#16161a,stroke:#00E676,color:#fff
 ```
 
+<Info>
+  The `app_domain` also does double duty for **replay protection**: because it's folded into the nullifier alongside `action_id`, each app maintains its own independent spent-set. A nullifier spent in App A has no bearing on App B.
+</Info>
+
 ## Proven, not asserted
 
 This is a real, reproducible result — the same credential used in the remittance app and the RWA-access app yields two different nullifiers:
@@ -46,15 +69,21 @@ node examples/unlinkability.mjs
 | Remittance | 777 | 44240 | `0x09e01e5e…436ba08c` |
 | RWA access | 888 | 48879 | `0x0532e4a7…357f2911` |
 
-Two apps, one engine, cryptographically unlinkable at the proof and nullifier layer.
+Same `credentialCommitment`, two unrelated nullifiers. Two apps, one engine, cryptographically unlinkable at the proof and nullifier layer.
 
 ## The scope of the claim
 
 <Warning>
-  Unlinkability is scoped **precisely**. The same credential yields different nullifiers per app, unlinkable *at the proof and nullifier layer*. Wallet addresses, funding sources, IPs, and timing can still correlate users. Nullis never overclaims beyond the artifact layer.
+  Unlinkability is scoped **precisely**. The same credential yields different nullifiers per app, unlinkable *at the proof and nullifier layer*. It does **not** hide:
+
+  - **Wallet addresses** — the submitting account is public on both apps.
+  - **Funding sources** — shared funding can correlate accounts.
+  - **IP and timing** — network-level metadata lives outside the artifact layer.
+
+  Nullis never overclaims beyond the artifact layer.
 </Warning>
 
-This precision is itself a feature: Nullis tells you exactly where its privacy guarantee ends, so you can reason about the rest of your stack honestly.
+This precision is itself a feature: Nullis tells you exactly where its privacy guarantee ends, so you can reason about the rest of your stack — wallets, RPC, funding — honestly, instead of assuming a blanket "anonymous."
 
 <Card title="Next: revocation" icon="rotate" href="/crypto/revocation">
   How access is revoked without touching anyone's identity.
